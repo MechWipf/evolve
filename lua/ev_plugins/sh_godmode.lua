@@ -1,6 +1,6 @@
-/*-------------------------------------------------------------------------------------------------------------------------
+--[[-------------------------------------------------------------------------------------------------------------------------
 	Enable godmode for a player
--------------------------------------------------------------------------------------------------------------------------*/
+-------------------------------------------------------------------------------------------------------------------------]]--
 
 local PLUGIN = {}
 PLUGIN.Title = "Godmode"
@@ -11,12 +11,17 @@ PLUGIN.Usage = "[players] [1/0]"
 PLUGIN.Privileges = { "God" }
 
 function PLUGIN:Call( ply, args )
-	if ( ply:EV_HasPrivilege( "God" ) ) then
+	local hasPermGod     = ply:EV_HasPrivilege( "God" )
+	local hasPermSelfGod = ply:EV_HasPrivilege( "SelfGod" )
+
+	if hasPermGod or hasPermSelfGod then
 		local players = {}
 		local enabled = ( tonumber( args[ #args ] ) or 1 ) > 0
 		
 		for _, pl in ipairs( evolve:FindPlayer( args, ply, true ) ) do
-			if ply:EV_IsAdmin() or ply:EV_GetRank() ~= pl:EV_GetRank() or ply == pl then
+			if ( hasPermGod and ply:EV_IsAdmin() and ply:EV_BetterThanOrEqual( pl ) )
+			or ( hasPermGod and ply:EV_BetterThan( pl ) )
+			or ( hasPermSelfGod and ply == pl ) then
 				players[#players+1] = pl
 				
 				if ( enabled ) then pl:GodEnable() else pl:GodDisable() end
