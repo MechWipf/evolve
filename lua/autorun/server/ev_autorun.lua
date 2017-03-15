@@ -8,7 +8,7 @@ evolve = {}
 -- Load vON
 local von_bak = von
 if not von then include( "../../includes/ev_von/von.lua") end
-if not von then error( "Evolve loading aborted. vON not found!" )
+if not von then error( "Evolve loading aborted. vON not found!" ) end
 
 evolve.von = von
 von = von_bak

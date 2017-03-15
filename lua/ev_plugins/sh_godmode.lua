@@ -8,7 +8,7 @@ PLUGIN.Description = "Enable godmode for a player."
 PLUGIN.Author = "Overv"
 PLUGIN.ChatCommand = "god"
 PLUGIN.Usage = "[players] [1/0]"
-PLUGIN.Privileges = { "God" }
+PLUGIN.Privileges = { "God", "SelfGod" }
 
 function PLUGIN:Call( ply, args )
 	local hasPermGod     = ply:EV_HasPrivilege( "God" )
