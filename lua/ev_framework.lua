@@ -251,6 +251,12 @@ end
 
 function evolve:RegisterPlugin( plugin )
 	local pluginFile = evolve.pluginFile
+
+	if plugin.Initialize then
+		local ok = pcall( plugin.Initialize, plugin )
+		if not ok then error( "Plugin " .. plugin.Title .. " failed to Inizialize." ) end
+	end
+
 	if ( string.Left( pluginFile, string.find( pluginFile, "_" ) - 1 ) != "cl" or CLIENT ) then
 		table.insert( evolve.stagedPlugins, plugin )
 		plugin.File = pluginFile

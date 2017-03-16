@@ -18,12 +18,6 @@ function PLUGIN:GetArguments( str )
 	return args
 end
 
-function PLUGIN:Initialize()
-	util.AddNetworkString("EV_VoteEnd")
-	util.AddNetworkString("EV_VoteMenu")
-	util.AddNetworkString("EV_DoVote")
-end
-
 function PLUGIN:VoteEnd()
 	evolve:SendNetMessage( "EV_VoteEnd", nil )
 	

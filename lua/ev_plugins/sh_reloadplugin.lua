@@ -6,10 +6,6 @@ PLUGIN.ChatCommand = "reloadplugin"
 PLUGIN.Usage = "<plugin>"
 PLUGIN.Privileges = { "Plugin reload" }
 
-function PLUGIN:Initialize()
-	util.AddNetworkString( "EV_Command" )
-end
-
 function PLUGIN:Call( ply, args )
 	if ply:IsValid() then
 		if !ply:EV_HasPrivilege("Plugin reload") then

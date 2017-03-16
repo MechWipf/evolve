@@ -10,10 +10,6 @@ PLUGIN.ChatCommand = "notice"
 PLUGIN.Usage = "<message> [time=10]"
 PLUGIN.Privileges = { "Notice" }
 
-function PLUGIN:Initialize()
-	util.AddNetworkString( "EV_Notify" )
-end
-
 function PLUGIN:Call( ply, args )
 	if ( ply:EV_HasPrivilege( "Notice" ) ) then
 		local time = tonumber( args[ #args ] ) or 10
