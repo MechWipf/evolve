@@ -10,8 +10,8 @@ PLUGIN.ChatCommand = "motd"
 PLUGIN.Usage = nil
 PLUGIN.Privileges = nil
 
-function PLUGIN:Call(ply, args)
-	self:OpenMotd(ply)
+function PLUGIN:Call( ply, args )
+	self:OpenMotd( ply )
 end
 
 function PLUGIN:PlayerInitialSpawn(ply)
@@ -25,17 +25,34 @@ function PLUGIN:OpenMotd(ply)
 end
 
 if (SERVER) then 
-	if file.Exists("evolvemotd.txt", "DATA") then
-		resource.AddFile("data/evolvemotd.txt")
+	function PLUGIN:GetMotd()
+		if file.Exists("evolvemotd.txt", "DATA") then
+			self.Motd = file.Read("evolvemotd.txt", "DATA")
+		end
+	end
+	PLUGIN:GetMotd()
+
+	util.AddNetworkString("ev_sendmotd")
+	util.AddNetworkString("ev_requestmotd")
+
+	function PLUGIN:SendMotd( ply )
+		if IsValid( ply ) then
+			net.Start( "ev_sendmotd" )
+				net.WriteString( self.Motd )
+			net.Send( ply )
+		end
 	end
 
-	for k,v in pairs(player.GetAll()) do
-		v:ConCommand("evolve_startmotd")
+	net.Receive( "ev_requestmotd", function ( _len, ply )
+		if PLUGIN.Motd != nil then
+			PLUGIN:SendMotd( ply )
+		end
+	end)
+
+	for k,v in pairs( player.GetAll() ) do
+		v:ConCommand( "evolve_startmotd" )
 	end
-end
-
-
-if (CLIENT) then
+else
 	function PLUGIN:CreateMenu()
 		self.StartPanel = vgui.Create("DFrame")
 		local w,h = 150,50
@@ -80,22 +97,26 @@ if (CLIENT) then
 		
 		self.MotdBox = vgui.Create("HTML", self.MotdPanel)
 		self.MotdBox:StretchToParent(4, 25, 4, 4)
-		self.MotdBox:SetHTML(file.Read("evolvemotd.txt"))
 	end
-	
+
 	concommand.Add("evolve_motd", function(ply,cmd,args)
-		if file.Exists("evolvemotd.txt", "DATA") then
-			PLUGIN.MotdPanel:SetVisible(true)
-		end
+		net.Start( "ev_requestmotd" )
+		net.SendToServer()
 	end)
-	
+
 	concommand.Add("evolve_startmotd", function(ply,cmd,args)
-		if file.Exists("evolvemotd.txt", "DATA") then
-			if not PLUGIN.StartPanel then PLUGIN:CreateMenu() end
+		if not PLUGIN.StartPanel then PLUGIN:CreateMenu() end
+		net.Start( "ev_requestmotd" )
+		net.SendToServer()
+	end)
+
+	net.Receive( "ev_sendmotd", function ( _len )
+		PLUGIN.Motd = net.ReadString()
+		if PLUGIN.Motd != nil then
+			PLUGIN.MotdBox:SetHTML(PLUGIN.Motd)
 			PLUGIN.StartPanel:SetVisible(true)
 		end
 	end)
-	
 end
 
 evolve:RegisterPlugin(PLUGIN)
