@@ -5,10 +5,12 @@
 local PLUGIN = {}
 PLUGIN.Title = "MOTD"
 PLUGIN.Description = "Message of the Day."
-PLUGIN.Author = "Divran"
+PLUGIN.Author = "Divran, MechWipf"
 PLUGIN.ChatCommand = "motd"
 PLUGIN.Usage = nil
 PLUGIN.Privileges = nil
+
+local CHUNK_SIZE = 1024 * 63
 
 function PLUGIN:Call( ply, args )
 	self:OpenMotd( ply )
@@ -25,6 +27,12 @@ function PLUGIN:OpenMotd(ply)
 end
 
 if (SERVER) then 
+	PLUGIN.PlayerDownload = {}
+
+	function PLUGIN:PlayerDisconnected( ply )
+		self.PlayerDownload[ply] = nil
+	end
+
 	function PLUGIN:GetMotd()
 		if file.Exists("evolvemotd.txt", "DATA") then
 			self.Motd = file.Read("evolvemotd.txt", "DATA")
@@ -36,11 +44,28 @@ if (SERVER) then
 	util.AddNetworkString("ev_requestmotd")
 
 	function PLUGIN:SendMotd( ply )
-		if IsValid( ply ) then
-			net.Start( "ev_sendmotd" )
-				net.WriteString( self.Motd )
-			net.Send( ply )
+		local routine
+		if self.PlayerDownload[ply] and coroutine.status( self.PlayerDownload[ply] ) ~= "dead" then
+			routine = self.PlayerDownload[ply]
+		else
+			routine = coroutine.create(function ()
+				local chunks = math.floor( self.Motd:len() / CHUNK_SIZE )
+
+				for chunk = 0, chunks, 1 do
+					if IsValid( ply ) then
+						net.Start( "ev_sendmotd" )
+							net.WriteBool( chunk == chunks )
+							net.WriteString( self.Motd:sub( chunk * CHUNK_SIZE + 1, (chunk + 1) * CHUNK_SIZE ) )
+						net.Send( ply )
+					end
+					coroutine.yield()
+				end
+			end)
+
+			self.PlayerDownload[ply] = routine
 		end
+
+		coroutine.resume(routine)
 	end
 
 	net.Receive( "ev_requestmotd", function ( _len, ply )
@@ -54,67 +79,56 @@ if (SERVER) then
 	end
 else
 	function PLUGIN:CreateMenu()
-		self.StartPanel = vgui.Create("DFrame")
-		local w,h = 150,50
-		self.StartPanel:Center()
-		self.StartPanel:SetSize(w, h)
-		self.StartPanel:SetTitle("Welcome!")
-		self.StartPanel:SetVisible(false)
-		self.StartPanel:SetDraggable(true)
-		self.StartPanel:ShowCloseButton(false)
-		self.StartPanel:SetDeleteOnClose(false)
-		self.StartPanel:SetScreenLock(true)
-		self.StartPanel:MakePopup()
-		
-		self.OpenButton = vgui.Create("DButton", self.StartPanel)
-		self.OpenButton:SetSize(150 / 2 - 4, 20)
-		self.OpenButton:SetPos(2, 25)
-		self.OpenButton:SetText("Open MOTD")
-		self.OpenButton.DoClick = function()
-			PLUGIN.MotdPanel:SetVisible(true)
-			PLUGIN.StartPanel:SetVisible(false) 
-		end
-		
-		self.CloseButton = vgui.Create("DButton",self.StartPanel)
-		self.CloseButton:SetSize(150 / 2 - 6, 20)
-		self.CloseButton:SetPos(150 / 2 + 4, 25)
-		self.CloseButton:SetText("Close")
-		self.CloseButton.DoClick = function() 
-			PLUGIN.StartPanel:SetVisible(false) 
-		end
-		
 		self.MotdPanel = vgui.Create("DFrame")
-		local w,h = ScrW() - 200,ScrH() - 200
+		local w,h = ScrW() - 200, ScrH() - 200
 		self.MotdPanel:SetPos(100, 100)
 		self.MotdPanel:SetSize(w, h)
 		self.MotdPanel:SetTitle("MOTD")
 		self.MotdPanel:SetVisible(false)
 		self.MotdPanel:SetDraggable(false)
-		self.MotdPanel:ShowCloseButton(true)
+		self.MotdPanel:ShowCloseButton(false)
 		self.MotdPanel:SetDeleteOnClose(false)
 		self.MotdPanel:SetScreenLock(true)
 		self.MotdPanel:MakePopup()
 		
 		self.MotdBox = vgui.Create("HTML", self.MotdPanel)
-		self.MotdBox:StretchToParent(4, 25, 4, 4)
+		self.MotdBox:StretchToParent(4, 25, 4, 34)
+
+		self.MotdCloseButton = vgui.Create("DButton",self.MotdPanel)
+		self.MotdCloseButton:SetSize(150, 20)
+		self.MotdCloseButton:SetPos(w / 2 + 4, h - 29)
+		self.MotdCloseButton:SetText("Accept")
+		self.MotdCloseButton.DoClick = function() 
+			PLUGIN.MotdPanel:SetVisible(false)
+		end
 	end
 
 	concommand.Add("evolve_motd", function(ply,cmd,args)
 		net.Start( "ev_requestmotd" )
 		net.SendToServer()
+
+		PLUGIN.Motd = ""
 	end)
 
 	concommand.Add("evolve_startmotd", function(ply,cmd,args)
-		if not PLUGIN.StartPanel then PLUGIN:CreateMenu() end
+		if not PLUGIN.MotdPanel then PLUGIN:CreateMenu() end
 		net.Start( "ev_requestmotd" )
 		net.SendToServer()
+
+		PLUGIN.Motd = ""
 	end)
 
 	net.Receive( "ev_sendmotd", function ( _len )
-		PLUGIN.Motd = net.ReadString()
-		if PLUGIN.Motd != nil then
+		local done = net.ReadBool()
+
+		PLUGIN.Motd = PLUGIN.Motd .. net.ReadString()
+
+		if not done then
+			net.Start( "ev_requestmotd" )
+			net.SendToServer()
+		elseif PLUGIN.Motd != nil then
 			PLUGIN.MotdBox:SetHTML(PLUGIN.Motd)
-			PLUGIN.StartPanel:SetVisible(true)
+			PLUGIN.MotdPanel:SetVisible(true)
 		end
 	end)
 end
