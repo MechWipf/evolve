@@ -58,7 +58,10 @@ if (SERVER) then
 							net.WriteString( self.Motd:sub( chunk * CHUNK_SIZE + 1, (chunk + 1) * CHUNK_SIZE ) )
 						net.Send( ply )
 					end
-					coroutine.yield()
+
+					if chunk ~= chunks then
+						coroutine.yield()
+					end
 				end
 			end)
 
